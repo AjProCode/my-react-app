@@ -9,7 +9,7 @@ import {
 // NOTE: This is a placeholder for a secure API key handling mechanism.
 // In a real application, this key should NOT be stored in the frontend code.
 // It should be handled via a backend server or secure environment variables.
-const API_KEY = ""; // IMPORTANT: Leave this empty. It will be handled by the environment.
+const API_KEY = process.env.REACT_APP_GEMINI_API_KEY; // IMPORTANT: Leave this empty. It will be handled by the environment.
 
 const callGeminiAPI = async (prompt, isJson = false) => {
   const model = 'gemini-2.5-flash-preview-05-20';
