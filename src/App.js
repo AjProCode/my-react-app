@@ -4,12 +4,31 @@ import {
   FileQuestion, BookOpenCheck, Dumbbell, Volume2, StopCircle, UserCheck, Shield,
   Send, Users, Stethoscope, LogOut, MessageSquare, Wrench, Sparkles, ChefHat
 } from 'lucide-react';
+import { getPerformance } from "https://esm.sh/firebase/performance";
+import { initializeApp } from "https://esm.sh/firebase/app";
+import { getAuth, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://esm.sh/firebase/auth";
+import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc } from "https://esm.sh/firebase/firestore";
+
+// --- FIREBASE CONFIGURATION ---
+// IMPORTANT: Replace with your Firebase project's configuration.
+const firebaseConfig = { 
+  apiKey: "AIzaSyAcVIRfEaXRQNkCydzRI99b4mHL2AohCwo",
+  authDomain: "madhumeh-mitr.firebaseapp.com",
+  projectId: "madhumeh-mitr",
+  storageBucket: "madhumeh-mitr.appspot.com",
+  messagingSenderId: "851963498178",
+  appId: "1:851963498178:web:087246d635818125c4e492"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const perf = getPerformance(app);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
 
 // --- GEMINI API HELPER ---
-// NOTE: This is a placeholder for a secure API key handling mechanism.
-// In a real application, this key should NOT be stored in the frontend code.
-// It should be handled via a backend server or secure environment variables.
-const API_KEY = process.env.REACT_APP_GEMINI_API_KEY; // IMPORTANT: Leave this empty. It will be handled by the environment.
+const API_KEY = ""; // IMPORTANT: Leave this empty.
 
 const callGeminiAPI = async (prompt, isJson = false) => {
   const model = 'gemini-2.5-flash-preview-05-20';
@@ -82,7 +101,7 @@ function pcmToWav(pcmData, sampleRate) {
 // --- REUSABLE UI COMPONENTS ---
 const SectionTitle = ({ title }) => <h2 className="text-4xl sm:text-5xl font-black text-gray-800 mb-8 tracking-tight text-center sm:text-left">{title}</h2>;
 const LoadingSpinner = () => (
-  <div className="flex flex-col justify-center items-center h-full p-10">
+  <div className="min-h-screen w-full flex flex-col justify-center items-center">
     <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600"></div>
     <p className="mt-4 text-lg font-semibold text-gray-600">Loading...</p>
   </div>
@@ -104,31 +123,72 @@ const ActionButton = ({ onClick, disabled, isLoading, loadingText, children, cla
 );
 const Card = ({ children, className }) => <div className={`bg-white p-6 rounded-2xl shadow-lg border border-gray-200 ${className}`}>{children}</div>;
 
-// --- UNDER CONSTRUCTION PAGE ---
-const UnderConstructionPage = () => (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-100 p-4 -m-8">
-        <div className="text-center">
-            <Wrench className="mx-auto h-24 w-24 text-blue-600 animate-bounce" />
-            <h1 className="mt-6 text-6xl font-black text-gray-800 tracking-tighter">Coming Soon!</h1>
-            <p className="text-xl text-gray-500 mt-2">We are currently building this page.</p>
-            <a href="/" className="mt-8 inline-block px-8 py-4 bg-blue-600 text-white font-bold rounded-lg shadow-lg hover:bg-blue-700 transition">
-                Go to Dashboard
-            </a>
-        </div>
+// --- AUTHENTICATION COMPONENT ---
+const AuthComponent = ({ showMessage }) => {
+  const [isLogin, setIsLogin] = React.useState(true);
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      if (isLogin) {
+        await signInWithEmailAndPassword(auth, email, password);
+        showMessage("Logged in successfully!", 'success');
+      } else {
+        await createUserWithEmailAndPassword(auth, email, password);
+        showMessage("Account created! Please log in.", 'success');
+        setIsLogin(true); // Switch to login view after signup
+      }
+    } catch (error) {
+      showMessage(error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center bg-gray-100 p-4">
+      <div className="w-full max-w-md">
+        <header className="text-center mb-8">
+          <h1 className="text-6xl font-black text-gray-800 tracking-tighter">AI Health Tracker</h1>
+          <p className="text-xl text-gray-500 mt-2">Your intelligent wellness companion</p>
+        </header>
+        <Card>
+          <h2 className="text-4xl font-bold text-gray-800 mb-6 text-center">{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
+          <form onSubmit={handleAuth} className="space-y-6">
+            <div>
+              <label className="block text-lg font-semibold text-gray-700 mb-2">Email</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-4 text-lg border-2 border-gray-300 rounded-lg" required />
+            </div>
+            <div>
+              <label className="block text-lg font-semibold text-gray-700 mb-2">Password</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-4 text-lg border-2 border-gray-300 rounded-lg" required />
+            </div>
+            <ActionButton type="submit" isLoading={loading} loadingText={isLogin ? "Logging in..." : "Signing up..."} className="bg-blue-600 hover:bg-blue-700">
+              {isLogin ? 'Login' : 'Sign Up'}
+            </ActionButton>
+          </form>
+          <p className="mt-6 text-center text-gray-600">
+            {isLogin ? "Don't have an account?" : "Already have an account?"}
+            <button onClick={() => setIsLogin(!isLogin)} className="text-blue-600 font-bold ml-2 hover:underline">
+              {isLogin ? 'Sign Up' : 'Login'}
+            </button>
+          </p>
+        </Card>
+      </div>
     </div>
-);
+  );
+};
 
 
 // --- PATIENT DASHBOARD & FEATURES ---
 const PatientDashboard = ({ user, showMessage, handleSignOut }) => {
     const [activeTab, setActiveTab] = React.useState('health');
-    const [healthRecords, setHealthRecords] = React.useState([
-        { id: 1, date: '2023-10-27', weight: '70', bloodSugar: '95', bloodPressureSystolic: '120', bloodPressureDiastolic: '80', notes: 'Feeling good' },
-        { id: 2, date: '2023-10-26', weight: '70.2', bloodSugar: '98', bloodPressureSystolic: '122', bloodPressureDiastolic: '81', notes: 'A bit tired' },
-    ]);
-    const [symptoms, setSymptoms] = React.useState([
-        { id: 1, date: '2023-10-27', description: 'Headache', severity: 'mild', notes: 'After screen time' }
-    ]);
+    const [healthRecords, setHealthRecords] = React.useState([]);
+    const [symptoms, setSymptoms] = React.useState([]);
     const [healthFormData, setHealthFormData] = React.useState({ date: '', weight: '', bloodSugar: '', bloodPressureSystolic: '', bloodPressureDiastolic: '', notes: '' });
     const [editingHealthId, setEditingHealthId] = React.useState(null);
     const [symptomFormData, setSymptomFormData] = React.useState({ date: '', description: '', severity: 'mild', notes: '' });
@@ -166,39 +226,61 @@ const PatientDashboard = ({ user, showMessage, handleSignOut }) => {
     const [doctorChatInput, setDoctorChatInput] = React.useState('');
     const [isSendingDoctorMessage, setIsSendingDoctorMessage] = React.useState(false);
 
+    // Firestore data fetching
+    React.useEffect(() => {
+        if (user) {
+            const healthRecordsCol = collection(db, "users", user.uid, "healthRecords");
+            const unsubscribeHealth = onSnapshot(healthRecordsCol, (snapshot) => {
+                setHealthRecords(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+            });
+
+            const symptomsCol = collection(db, "users", user.uid, "symptoms");
+            const unsubscribeSymptoms = onSnapshot(symptomsCol, (snapshot) => {
+                setSymptoms(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+            });
+
+            return () => {
+                unsubscribeHealth();
+                unsubscribeSymptoms();
+            };
+        }
+    }, [user]);
+
     // CRUD functions
-    const handleHealthSubmit = (e) => {
+    const handleHealthSubmit = async (e) => {
         e.preventDefault();
         if (editingHealthId) {
-            setHealthRecords(healthRecords.map(r => r.id === editingHealthId ? { ...healthFormData, id: editingHealthId } : r));
+            const docRef = doc(db, "users", user.uid, "healthRecords", editingHealthId);
+            await updateDoc(docRef, healthFormData);
             showMessage("Record updated!", 'success');
         } else {
-            const newRecord = { ...healthFormData, id: Date.now() };
-            setHealthRecords([newRecord, ...healthRecords]);
+            await addDoc(collection(db, "users", user.uid, "healthRecords"), healthFormData);
             showMessage("Record added!", 'success');
         }
         setEditingHealthId(null);
         setHealthFormData({ date: '', weight: '', bloodSugar: '', bloodPressureSystolic: '', bloodPressureDiastolic: '', notes: '' });
     };
-    const handleDeleteHealth = (id) => {
-        setHealthRecords(healthRecords.filter(r => r.id !== id));
+    const handleDeleteHealth = async (id) => {
+        const docRef = doc(db, "users", user.uid, "healthRecords", id);
+        await deleteDoc(docRef);
         showMessage("Record deleted.", 'success');
     };
-    const handleSymptomSubmit = (e) => {
+    const handleSymptomSubmit = async (e) => {
         e.preventDefault();
         if (editingSymptomId) {
-            setSymptoms(symptoms.map(s => s.id === editingSymptomId ? { ...symptomFormData, id: editingSymptomId } : s));
-             showMessage("Symptom updated!", 'success');
+            const docRef = doc(db, "users", user.uid, "symptoms", editingSymptomId);
+            await updateDoc(docRef, symptomFormData);
+            showMessage("Symptom updated!", 'success');
         } else {
-            const newSymptom = { ...symptomFormData, id: Date.now() };
-            setSymptoms([newSymptom, ...symptoms]);
+            await addDoc(collection(db, "users", user.uid, "symptoms"), symptomFormData);
             showMessage("Symptom added!", 'success');
         }
         setEditingSymptomId(null);
         setSymptomFormData({ date: '', description: '', severity: 'mild', notes: '' });
     };
-    const handleDeleteSymptom = (id) => {
-        setSymptoms(symptoms.filter(s => s.id !== id));
+    const handleDeleteSymptom = async (id) => {
+        const docRef = doc(db, "users", user.uid, "symptoms", id);
+        await deleteDoc(docRef);
         showMessage("Symptom deleted.", 'success');
     };
     
@@ -230,7 +312,6 @@ const PatientDashboard = ({ user, showMessage, handleSignOut }) => {
         setIsLoadingRecipes(true);
         const prompt = `Provide 3 simple, healthy recipe ideas for someone with a dietary preference for "${dietaryPreference}". For each recipe, include a name, a short description, and a list of key ingredients.`;
         const result = await callGeminiAPI(prompt);
-        // Simple parsing, a more robust solution would use JSON mode
         const recipes = result.split(/\d\./).slice(1).map(r => r.trim());
         setRecipeSuggestions(recipes);
         setIsLoadingRecipes(false);
@@ -253,7 +334,7 @@ const PatientDashboard = ({ user, showMessage, handleSignOut }) => {
     
     const handleMealAnalysis = async () => {
         setIsLoadingMealAnalysis(true);
-        const prompt = `Analyze the following meal description for a general nutritional overview (e.g., is it balanced, high in protein, etc.). Do not give exact calorie counts. Meal: "${mealDescription}"`;
+        const prompt = `Analyze the following meal description for a general nutritional overview. Meal: "${mealDescription}"`;
         const result = await callGeminiAPI(prompt);
         setMealAnalysis(result);
         setIsLoadingMealAnalysis(false);
@@ -276,35 +357,8 @@ const PatientDashboard = ({ user, showMessage, handleSignOut }) => {
         setIsLoadingDoctorQuestions(false);
     };
 
-    const DoctorConnectTab = ({ doctors, connection, handleConnect, messages, input, setInput, handleSend, isSending, currentUser }) => {
-        return (
-            <div>
-                <SectionTitle title="Connect with a Doctor" />
-                {!connection ? (
-                    <div>
-                        <h3 className="text-2xl font-bold mb-4">Available Doctors</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {doctors.map(doc => (
-                                <Card key={doc.id}>
-                                    <p className="font-bold text-lg">{doc.email}</p>
-                                    <button onClick={() => handleConnect(doc.id)} className="mt-2 w-full bg-blue-500 text-white p-2 rounded-lg font-semibold hover:bg-blue-600">Request Connection</button>
-                                </Card>
-                            ))}
-                        </div>
-                    </div>
-                ) : (
-                    <Card className="max-w-2xl mx-auto">
-                        <h3 className="text-2xl font-bold mb-1">My Doctor: <span className="text-blue-600">{connection.doctor.email}</span></h3>
-                        <p className="text-lg mb-4">Status: <span className={`font-bold capitalize ${connection.status === 'active' ? 'text-green-600' : 'text-yellow-600'}`}>{connection.status}</span></p>
-                        {connection.status === 'pending' && <p className="text-center p-4 bg-yellow-100 rounded-lg">Your connection request is pending approval.</p>}
-                    </Card>
-                )}
-            </div>
-        );
-    }
-
     return (
-        <div className="w-full max-w-7xl mx-auto">
+        <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
             <header className="flex justify-between items-center mb-10">
                 <div>
                     <h1 className="text-4xl font-black text-gray-800 tracking-tighter">My Dashboard</h1>
@@ -347,9 +401,18 @@ const PatientDashboard = ({ user, showMessage, handleSignOut }) => {
 
 // --- MAIN APP ROUTER ---
 export default function App() {
-  const [path] = React.useState(window.location.pathname);
   const [message, setMessage] = React.useState({ text: '', type: '' });
+  const [user, setUser] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
   const messageTimeoutRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const showMessage = (text, type) => {
     setMessage({ text, type });
@@ -358,23 +421,16 @@ export default function App() {
   };
 
   const handleSignOut = () => {
-    showMessage("Signed out successfully.", "success");
+    signOut(auth).then(() => {
+      showMessage("Signed out successfully.", "success");
+    }).catch((error) => {
+      showMessage(error.message, "error");
+    });
   };
 
-  const mockUser = {
-    id: 'mock_user_12345',
-    email: 'guest.user@example.com',
-  };
-
-  const renderPage = () => {
-    switch (path) {
-      case '/login':
-      case '/signup':
-        return <UnderConstructionPage />;
-      default:
-        return <PatientDashboard user={mockUser} showMessage={showMessage} handleSignOut={handleSignOut} />;
-    }
-  };
+  if (loading) {
+      return <LoadingSpinner />;
+  }
 
   return (
     <div className="min-h-screen w-full bg-gray-100 font-inter">
@@ -383,9 +439,11 @@ export default function App() {
           {message.text}
         </div>
       )}
-      <div className="p-4 sm:p-6 lg:p-8">
-        {renderPage()}
-      </div>
+      {!user ? (
+        <AuthComponent showMessage={showMessage} />
+      ) : (
+        <PatientDashboard user={user} showMessage={showMessage} handleSignOut={handleSignOut} />
+      )}
     </div>
   );
 }
@@ -576,3 +634,30 @@ const DoctorPrepTab = ({ questions, isLoading, handleGenerate, hasData }) => (
         {questions && <Card className="mt-8 text-left max-w-3xl mx-auto"><p className="whitespace-pre-wrap">{questions}</p></Card>}
     </div>
 );
+
+const DoctorConnectTab = ({ doctors, connection, handleConnect, messages, input, setInput, handleSend, isSending, currentUser }) => {
+    return (
+        <div>
+            <SectionTitle title="Connect with a Doctor" />
+            {!connection ? (
+                <div>
+                    <h3 className="text-2xl font-bold mb-4">Available Doctors</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {doctors.map(doc => (
+                            <Card key={doc.id}>
+                                <p className="font-bold text-lg">{doc.email}</p>
+                                <button onClick={() => handleConnect(doc.id)} className="mt-2 w-full bg-blue-500 text-white p-2 rounded-lg font-semibold hover:bg-blue-600">Request Connection</button>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <Card className="max-w-2xl mx-auto">
+                    <h3 className="text-2xl font-bold mb-1">My Doctor: <span className="text-blue-600">{connection.doctor.email}</span></h3>
+                    <p className="text-lg mb-4">Status: <span className={`font-bold capitalize ${connection.status === 'active' ? 'text-green-600' : 'text-yellow-600'}`}>{connection.status}</span></p>
+                    {connection.status === 'pending' && <p className="text-center p-4 bg-yellow-100 rounded-lg">Your connection request is pending approval.</p>}
+                </Card>
+            )}
+        </div>
+    );
+};
