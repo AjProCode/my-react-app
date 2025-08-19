@@ -27,7 +27,8 @@ const firebaseConfig = {
 const ADMIN_EMAIL = "admin@healthtracker.com";
 
 // --- GEMINI API HELPER ---
-const API_KEY = "AIzaSyCmOmbut0oY2NloBSVKbsaPvf3CJvAYbaA"; // IMPORTANT: Leave this empty for the environment to provide it.
+const API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
+
 
 const callGeminiAPI = async (prompt, isJson = false) => {
   const model = 'gemini-2.5-flash-preview-05-20';
